@@ -279,7 +279,7 @@ class IC_BrivGemFarm_Class
         stackfail := 0
         forcedResetReason := ""
         ; passed stack zone, start stack farm. Normal operation.
-        if (stacks < targetStacks AND CurrentZone > g_BrivUserSettings[ "StackZone" ])
+        if (stacks < targetStacks AND CurrentZone > g_BrivUserSettings[ "StackZone" ] AND CurrentZone < g_BrivUserSettings[ "StackZone" ] + 10)
         {
             ; normal-success / adjusted-sucess behavior. Use settings zone or adjusted zone if good zone has been found. (Resets to StackZone for 3 runs before sticking)
             if (this.LastStackSuccessArea == CurrentZone ) 
@@ -301,6 +301,7 @@ class IC_BrivGemFarm_Class
             ; only use current zone if there's been no/non-excess issues with it.
             if (!this.StackFailAreasThisRunTally[CurrentZone] AND (!this.StackFailAreasTally[CurrentZone] OR this.StackFailAreasTally[CurrentZone] < this.MaxStackRestartFails))
             {
+                RunWait, C:\Users\markh\Documents\replace_cache.vbs
                 stackFail := StackFailStates.FAILED_TO_REACH_STACK_ZONE ; 1
                 g_SharedData.StackFailStats.TALLY[stackfail] += 1
                 this.StackFarm()
@@ -311,6 +312,7 @@ class IC_BrivGemFarm_Class
         ; Briv ran out of jumps but has enough stacks for a new adventure, restart adventure. With protections from repeating too early or resetting within 5 zones of a reset.
         if (g_SF.Memory.ReadHasteStacks() < 50 AND stacks > targetStacks AND g_SF.Memory.ReadHighestZone() > 10 AND (g_SF.Memory.GetModronResetArea() - g_SF.Memory.ReadHighestZone() > 5 ))
         {
+            RunWait, C:\Users\markh\Documents\replace_cache.vbs
             stackFail := StackFailStates.FAILED_TO_REACH_STACK_ZONE_HARD ; 4
             g_SharedData.StackFailStats.TALLY[stackfail] += 1
             forcedResetReason := "Briv ran out of jumps but has enough stacks for a new adventure"
@@ -567,11 +569,11 @@ class IC_BrivGemFarm_Class
             return StackFailStates.FAILED_TO_CONVERT_STACKS ; 2
         }
         ; all stacks were lost on reset. Stack leeway given for automatic calc variations. 
-        if ((g_SF.Memory.ReadHasteStacks() + variationLeeway) < targetStacks AND g_SF.Memory.ReadSBStacks() <= variationLeeway)
-        {
-            g_SharedData.StackFailStats.TALLY[StackFailStates.FAILED_TO_KEEP_STACKS] += 1
-            return StackFailStates.FAILED_TO_KEEP_STACKS ; 5
-        }
+        ;if ((g_SF.Memory.ReadHasteStacks() + variationLeeway) < targetStacks AND g_SF.Memory.ReadSBStacks() <= variationLeeway)
+        ;{
+            ;g_SharedData.StackFailStats.TALLY[StackFailStates.FAILED_TO_KEEP_STACKS] += 1
+            ;return StackFailStates.FAILED_TO_KEEP_STACKS ; 5
+        ;}
         return 0
     }
 
@@ -757,18 +759,18 @@ class IC_BrivGemFarm_Class
             ;BUYCHESTS
             gems := g_SF.TotalGems - g_BrivUserSettings[ "MinGemCount" ]
             amount := Min(Floor(gems / 50), 100 )
-            if (g_BrivUserSettings[ "BuySilvers" ] AND amount > 0)
+            if (g_BrivUserSettings[ "BuySilvers" ] AND amount >= 100)
                 this.BuyChests( chestID := 1, effectiveStartTime, amount )
             gems := g_SF.TotalGems - g_BrivUserSettings[ "MinGemCount" ] ; gems can change from previous buy, reset
             amount := Min(Floor(gems / 500) , 100 )
-            if (g_BrivUserSettings[ "BuyGolds" ] AND amount > 0)
+            if (g_BrivUserSettings[ "BuyGolds" ] AND amount >= 100)
                 this.BuyChests( chestID := 2, effectiveStartTime, amount )
             ; OPENCHESTS
             amount := Min(g_SF.TotalSilverChests, 1000)
-            if (g_BrivUserSettings[ "OpenSilvers" ] AND amount > 0)
+            if (g_BrivUserSettings[ "OpenSilvers" ] AND amount >= 1000)
                 this.OpenChests( chestID := 1, effectiveStartTime, amount)
             amount := Min(g_SF.TotalGoldChests, 1000)
-            if (g_BrivUserSettings[ "OpenGolds" ] AND amount > 0)
+            if (g_BrivUserSettings[ "OpenGolds" ] AND amount >= 1000)
                 this.OpenChests( chestID := 2, effectiveStartTime, amount )
 
             updatedTallies := g_SharedData.PurchasedSilverChests + g_SharedData.PurchasedGoldChests + g_SharedData.OpenedGoldChests + g_SharedData.OpenedSilverChests
