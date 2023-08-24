@@ -538,6 +538,14 @@ class IC_BrivGemFarm_Class
             Sleep, 124
             ElapsedTime := A_TickCount - StartTime
         }
+        if ( ElapsedTime >= maxOnlineStackTime)
+        {
+            this.RestartAdventure( "Online stacking took too long (> " . (maxOnlineStackTime / 1000) . "s) - z[" . g_SF.Memory.ReadCurrentZone() . "].")
+            this.SafetyCheck()
+            g_PreviousZoneStartTime := A_TickCount
+            return
+        }
+        g_PreviousZoneStartTime := A_TickCount
         g_SF.FallBackFromZone()
         return
     }
@@ -696,7 +704,7 @@ class IC_BrivGemFarm_Class
         txtCheck .= "`n`n2. Check the correct memory file is being used. Current version: " . memoryVersion
         txtcheck .= "`n`n3. If IC is running with admin privileges, then the script will also require admin privileges."
         if (_MemoryManager.is64bit)
-            txtcheck .= "`n`n3. Check AHK is 64bit."
+            txtcheck .= "`n4. Check AHK is 64-bit. (Currently " . (A_PtrSize = 4 ? 32 : 64) . "-bit)"
 
         champion := 58   ; briv
         formationQ := g_SF.FindChampIDinSavedFavorite( champion, favorite := 1, includeChampion := True )
