@@ -121,6 +121,44 @@ class IC_BrivSharedFunctions_Class extends IC_SharedFunctions_Class
 
         return True
     }
+
+    ; Wait for Thellora ?
+    ShouldRushWait()
+    {
+        if !(this.Memory.ReadCurrentZone() >= 0 AND this.Memory.ReadCurrentZone() <= 3)
+            return False
+        rushStacks := ActiveEffectKeySharedFunctions.Thellora.ThelloraPlateausOfUnicornRunHandler.ReadRushStacks()
+        if !(rushStacks > 0 AND rushStacks < 10000)
+            return False
+        return True
+    }
+
+    DoRushWait()
+    {
+        this.ToggleAutoProgress( 0, false, true )
+        this.Memory.ActiveEffectKeyHandler.Refresh()
+        StartTime := A_TickCount
+        ElapsedTime := 0
+        timeout := 8000 ; 7s seconds
+        estimate := (timeout / timeScale) ; no buffer: 60s / timescale to show in LoopString
+        
+        ActiveEffectKeySharedFunctions.Thellora.ThelloraPlateausOfUnicornRunHandler.ReadRushStacks()
+        ; Loop escape conditions:
+        ;   does full timeout duration
+        ;   past highest accepted dashwait triggering area
+        ;   dash is active, dash.GetScaleActive() toggles to true when dash is active and returns "" if fails to read.
+        while ( ElapsedTime < timeout AND this.ShouldRushWait() )
+        {
+            this.ToggleAutoProgress(0)
+            this.SetFormation()
+            ElapsedTime := A_TickCount - StartTime
+            g_SharedData.LoopString := "Rush Wait: " . ElapsedTime . " / " . estimate
+            percentageReducedSleep := Max(Floor((1-(ElapsedTime/estimate))*estimate/10), 15)
+            Sleep, %percentageReducedSleep%
+        }
+        g_PreviousZoneStartTime := A_TickCount
+        return
+    }
 }
 
 class IC_BrivServerCall_Class extends IC_ServerCalls_Class
@@ -217,7 +255,7 @@ class IC_BrivGemFarm_Class
                 g_SF.Memory.ActiveEffectKeyHandler.Refresh()
                 worstCase := g_BrivUserSettings[ "AutoCalculateWorstCase" ]
                 g_SharedData.TargetStacks := this.TargetStacks := g_SF.CalculateBrivStacksToReachNextModronResetZone(worstCase) + 50 ; 50 stack safety net
-                this.LeftoverStacks := g_SF.CalculateBrivStacksLeftAtTargetZone(g_SF.Memory.ReadCurrentZone(), g_SF.Memory.GetModronResetArea() + 1, worstCase)
+                this.LeftoverStacks := g_SF.CalculateBrivStacksLeftAtTargetZone(g_SF.Memory.ReadCurrentZone(), g_SF.Memory.GetModronResetArea() + 1  - g_SF.ThelloraRushTest(), worstCase)
                 ; Don't reset last stack success area if 3 or more runs have failed to stack.
                 this.LastStackSuccessArea := this.StackFailAreasTally[g_UserSettings [ "StackZone" ]] < this.MaxStackRestartFails ? g_UserSettings [ "StackZone" ] : this.LastStackSuccessArea
                 this.StackFailAreasThisRunTally := {}
@@ -373,7 +411,8 @@ class IC_BrivGemFarm_Class
     {
         if (this.ShouldOfflineStack())
         {
-            return g_SF.Memory.ReadHasteStacks() + g_SF.Memory.ReadSBStacks()
+            currentStacks := g_BrivUserSettings[ "IgnoreBrivHaste" ] ? g_SF.Memory.ReadSBStacks() : ( g_SF.Memory.ReadHasteStacks() + g_SF.Memory.ReadSBStacks() )
+            return currentStacks
         }
         else
         {
@@ -622,6 +661,8 @@ class IC_BrivGemFarm_Class
             g_SF.DirectedInput(,release :=0, keyspam*) ;keysdown
         }
         g_SF.ModronResetZone := g_SF.Memory.GetModronResetArea() ; once per zone in case user changes it mid run.
+        if (g_SF.ShouldRushWait())
+            g_SF.DoRushWait()
         if (g_SF.ShouldDashWait())
             g_SF.DoDashWait( Max(g_SF.ModronResetZone - g_BrivUserSettings[ "DashWaitBuffer" ], 0) )
         g_SF.ToggleAutoProgress( 1, false, true )
@@ -753,6 +794,8 @@ class IC_BrivGemFarm_Class
     ; Sends calls for buying or opening chests and tracks chest metrics.
     DoChests(numSilverChests, numGoldChests)
     {
+        serverRateBuy := 250
+        serverRateOpen := 1000
         ; no chests to do - Replaces g_BrivUserSettings[ "DoChests" ] setting.
         if !(g_BrivUserSettings[ "BuySilvers" ] OR g_BrivUserSettings[ "BuyGolds" ] OR g_BrivUserSettings[ "OpenSilvers" ] OR g_BrivUserSettings[ "OpenGolds" ])
             return
