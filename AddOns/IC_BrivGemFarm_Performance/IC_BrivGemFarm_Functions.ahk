@@ -326,7 +326,7 @@ class IC_BrivGemFarm_Class
         stackfail := 0
         forcedResetReason := ""
         ; passed stack zone, start stack farm. Normal operation.
-        if (stacks < targetStacks AND CurrentZone > g_BrivUserSettings[ "StackZone" ] AND CurrentZone < g_BrivUserSettings[ "StackZone" ] + 10)
+        if (stacks < targetStacks AND CurrentZone > g_BrivUserSettings[ "StackZone" ] AND CurrentZone < g_BrivUserSettings[ "StackZone" ] + 20)
         {
             ; normal-success / adjusted-sucess behavior. Use settings zone or adjusted zone if good zone has been found. (Resets to StackZone for 3 runs before sticking)
             if (this.LastStackSuccessArea == CurrentZone ) 
@@ -818,12 +818,12 @@ class IC_BrivGemFarm_Class
 
             ;BUYCHESTS
             gems := g_SF.TotalGems - g_BrivUserSettings[ "MinGemCount" ]
-            amount := Min(Floor(gems / 50), 100 )
-            if (g_BrivUserSettings[ "BuySilvers" ] AND amount >= 100)
+            amount := Min(Floor(gems / 50), 200 )
+            if (g_BrivUserSettings[ "BuySilvers" ] AND amount >= 200)
                 this.BuyChests( chestID := 1, effectiveStartTime, amount )
             gems := g_SF.TotalGems - g_BrivUserSettings[ "MinGemCount" ] ; gems can change from previous buy, reset
-            amount := Min(Floor(gems / 500) , 100 )
-            if (g_BrivUserSettings[ "BuyGolds" ] AND amount >= 100)
+            amount := Min(Floor(gems / 500) , 200 )
+            if (g_BrivUserSettings[ "BuyGolds" ] AND amount >= 200)
                 this.BuyChests( chestID := 2, effectiveStartTime, amount )
             ; OPENCHESTS
             amount := Min(g_SF.TotalSilverChests, 1000)
