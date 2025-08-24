@@ -59,15 +59,15 @@ class IC_MemoryFunctions_Class
         this.EngineSettings := new IC_EngineSettings_Class(currentPointers.EngineSettings.moduleAddress, currentPointers.EngineSettings.staticOffset, currentPointers.EngineSettings.moduleOffset)
         this.CrusadersGameDataSet := new IC_CrusadersGameDataSet_Class(currentPointers.CrusadersGameDataSet.moduleAddress, currentPointers.CrusadersGameDataSet.moduleOffset)
         this.DialogManager := new IC_DialogManager_Class(currentPointers.DialogManager.moduleAddress, currentPointers.DialogManager.moduleOffset)
-        this.UserStatHandler := new IC_UserStatHandler_Class(currentPointers.UserStatHandler.moduleAddress, currentPointers.UserStatHandler.staticOffset, currentPointers.UserStatHandler.moduleOffset)
-        this.UserData := new IC_UserData_Class(currentPointers.UserData.moduleAddress, currentPointers.UserData.staticOffset, currentPointers.UserData.moduleOffset)
+        ; this.UserStatHandler := new IC_UserStatHandler_Class(currentPointers.UserStatHandler.moduleAddress, currentPointers.UserStatHandler.staticOffset, currentPointers.UserStatHandler.moduleOffset)
+        ; this.UserData := new IC_UserData_Class(currentPointers.UserData.moduleAddress, currentPointers.UserData.staticOffset, currentPointers.UserData.moduleOffset)
         this.ActiveEffectKeyHandler := new IC_ActiveEffectKeyHandler_Class(this)
     }
 
     ;Updates installed after the date of this script may result in the pointer addresses no longer being accurate.
     GetVersion()
     {
-        return "v2.5.0, 2025-08-06"
+        return "v2.5.4, 2025-08-16"
     }
 
     GetPointersVersion()
@@ -94,8 +94,8 @@ class IC_MemoryFunctions_Class
         this.EngineSettings.Refresh()
         this.CrusadersGameDataSet.Refresh()
         this.DialogManager.Refresh()
-        this.UserStatHandler.Refresh()
-        this.UserData.Refresh()
+        ; this.UserStatHandler.Refresh()
+        ; this.UserData.Refresh()
         this.ActiveEffectKeyHandler.Refresh()
     }
 
@@ -139,7 +139,7 @@ class IC_MemoryFunctions_Class
     GetXPBlessingSlot()
     {
 
-        effectsSize := this.GameManager.game.gameInstances[this.GameInstance].Controller.userData.ResetUpgradeHandler.activeEffectsByInstance.size.read()
+        effectsSize := this.GameManager.game.gameInstances[this.GameInstance].Controller.userData.ResetUpgradeHandler.activeEffectsByInstance.size.Read()
         if (effectsSize < 0 OR effectsSize > 200)
             return ""
         loop, %effectsSize%
@@ -269,6 +269,10 @@ class IC_MemoryFunctions_Class
         return this.GameManager.game.gameInstances[this.GameInstance].Controller.userData.inited.Read()
     }
 
+    ReadIsSplashVideoActive()
+    {
+        return this.GameManager.game.loadingScreen.SplashScreen.IsActive_k__BackingField.Read()
+    }
     ;=================
     ;Screen Resolution
     ;=================
@@ -286,6 +290,10 @@ class IC_MemoryFunctions_Class
     ;=========================================================
     ;herohandler - champion related information accessed by ID
     ;=========================================================
+    ReadClickLevel()
+    {
+        return this.GameManager.game.gameInstances[this.GameInstance].ClickLevel.Read()
+    }
 
     ReadChampListSize()
     {
@@ -338,11 +346,13 @@ class IC_MemoryFunctions_Class
 
     ReadUserID()
     {
+        ; return this.GameManager.game.gameUser.ID.Read() ; alternative
         return this.GameSettings.UserID.Read()
     }
 
     ReadUserHash()
     {
+        ; return this.GameManager.game.gameUser.Hash.Read() ; Alternative
         return this.GameSettings.Hash.Read()
     }
 
@@ -674,7 +684,7 @@ class IC_MemoryFunctions_Class
 
     ReadUltimateCooldownByItem(item := 0)
     {
-        return g_SF.Memory.GameManager.game.gameInstances[this.GameInstance].Screen.uiController.ultimatesBar.ultimateItems[item].ultimateAttack.internalCooldownTimer.Read()
+        return this.GameManager.game.gameInstances[this.GameInstance].Screen.uiController.ultimatesBar.ultimateItems[item].ultimateAttack.internalCooldownTimer.Read()
     }
 
     ReadWelcomeBackActive()
@@ -747,16 +757,17 @@ class IC_MemoryFunctions_Class
         return formation
     }
 
-    ReadBoughtLastUpgrade( seat := 1)
+    ReadBoughtLastUpgradeBySeat( seat := 1)
     {
-        val := true
-        ; The nextUpgrade pointer could be null if no upgrades are found.
-        if (this.GameManager.game.gameInstances[this.GameInstance].Screen.uiController.bottomBar.heroPanel.heroBoxsBySeat[seat].nextupgrade.Read())
-        {
-            ;TODO Re-Verify this value
-            val := this.GameManager.game.gameInstances[this.GameInstance].Screen.uiController.bottomBar.heroPanel.heroBoxsBySeat[seat].nextupgrade.IsPurchased.Read()
-        }
-        return val
+        upgradesGroup := this.GameManager.game.gameInstances[this.GameInstance].Screen.uiController.bottomBar.heroPanel.activeBoxes[seat - 1].hero.upgradeHandler.upgradeGroupsByLevel
+        upgradesGroup := this.GameManager.game.gameInstances[thiss.GameInstance].Screen.uiController.bottomBar.heroPanel.activeBoxes[seat - 1].hero.upgradeHandler.upgradeGroupsByLevel.Count.Read()
+         ; TODO: Dig into why this hashset's .size calc isn't correct and needs these offsets instead. Is it something to do with extending hashset instead of being hashset?
+        upgradesGroup.FullOffsets.Push(0x20, 0x30)
+        upgradeGroupsSize := upgradesGroup.Read()
+        purchasedSize :=  this.GameManager.game.gameInstances[this.GameInstance].Screen.uiController.bottomBar.heroPanel.activeBoxes[seat - 1].hero.upgradeHandler.PurchasedUpgrades.size.Read()
+        if (purchasedSize > 0 AND upgradeGroupsSize > 0)
+            return (purchasedSize + 1 >= upgradeGroupsSize) AND (upgradeGroupsSize - purchasedSize < 3) ;(so far has only been 1 below or = )
+        return True ; assume true to prevent upgrade spam on bad reads.
     }
 
     ;=========================
@@ -767,6 +778,11 @@ class IC_MemoryFunctions_Class
     ReadHeroUpgradeRequiredLevel(champID := 1, upgradeID := 7)
     {
         return this.GameManager.game.gameInstances[this.GameInstance].Controller.userData.HeroHandler.heroes[this.GetHeroHandlerIndexByChampID(ChampID)].upgradeHandler.upgradesByUpgradeId[upgradeID].RequiredLevel.Read()
+    }
+
+    ReadHeroUpgradeRequiredLevelByIndex(champID := 1, upgradeIndex := 7)
+    {
+        return this.GameManager.game.gameInstances[this.GameInstance].Controller.userData.HeroHandler.heroes[this.GetHeroHandlerIndexByChampID(ChampID)].upgradeHandler.upgradesByUpgradeId["key", upgradeIndex].RequiredLevel.Read()
     }
 
     ; Checks for specialization graphic. No graphic means no spec.
@@ -805,29 +821,15 @@ class IC_MemoryFunctions_Class
         return this.GameManager.game.gameInstances[this.GameInstance].Controller.UserData.HeroHandler.heroes[this.GetHeroHandlerIndexByChampID(champID)].Owned.Read()
     }
 
-    GetHeroNextUpgradeIsPurchased(champID := 1)
+    ReadBoughtLastUpgradeByChampID(champID := 1)
     {
-        currIndex := -1
-        size := this.GameManager.game.gameInstances[this.GameInstance].Screen.uiController.bottomBar.heroPanel.activeBoxes.size.Read()
-        if size != 12
-            return ""
-        loop, %size%
-        {
-            currID := this.GameManager.game.gameInstances[this.GameInstance].Screen.uiController.bottomBar.heroPanel.activeBoxes[A_Index - 1].hero.def.ID.read()
-            if ( currID == champID)
-            {
-                currIndex := A_Index - 1
-                break
-            }
-        }
-        if (currIndex < 0)
-            return ""
-        return this.GameManager.game.gameInstances[this.GameInstance].Screen.uiController.bottomBar.heroPanel.activeBoxes[currIndex].nextUpgrade.IsPurchased.Read()
-    }
-
-        ReadPurchasedUpgradeID(champID := 1, index := 0) ; Deprecated 
-    {
-        return this.GameManager.game.gameInstances[this.GameInstance].Controller.userData.HeroHandler.heroes[this.GetHeroHandlerIndexByChampID(champID)].upgradeHandler.PurchasedUpgrades.size.Read()
+        upgradesGroup := this.GameManager.game.gameInstances[this.GameInstance].uiController.userData.HeroHandler.heroes[this.GetHeroHandlerIndexByChampID(champID)].upgradeHandler.upgradeGroupsByLevel
+        upgradesGroup.FullOffsets.Push(0x20, 0x30)
+        upgradeGroupsSize := upgradesGroup.Read()
+        purchasedSize := this.GameManager.game.gameInstances[this.GameInstance].uiController.userData.HeroHandler.heroes[this.GetHeroHandlerIndexByChampID(champID)].upgradeHandler.PurchasedUpgrades.size.Read()
+        if (purchasedSize > 0 AND upgradeGroupsSize > 0)
+            return (purchasedSize + 1 >= upgradeGroupsSize) AND (upgradeGroupsSize - purchasedSize < 3) ;(so far has only been 1 below or = )
+        return True ; assume true to prevent upgrade spam on bad reads.
     }
 
     ;=========================
@@ -1220,10 +1222,14 @@ class IC_MemoryFunctions_Class
         return version
     }
     
-    HeroHasFeatSavedInFormation(heroID, featID, formationSlot)
+    HeroHasFeatSavedInFormation(heroID :=58, featID := 2131, formationSlot := 0)
     {
+    ;     heroID := 58
+    ;     formationSlot := this.GetSavedFormationSlotByFavorite(1)
         size := this.GameManager.game.gameInstances[this.GameInstance].FormationSaveHandler.formationSavesV2[formationSlot].Feats[heroID].List.size.Read()
-        if(size <= 0 OR size > 10) ; sanity check, should be < 6 but set to 10 in case of future game field familiar increase.
+        if(size == "")
+            return ""
+        if(size <= 0 OR size > 10) ; sanity check
             return false
         Loop, %size%
         {
@@ -1234,10 +1240,13 @@ class IC_MemoryFunctions_Class
         return false
     }
     
-    HeroHasAnyFeatsSavedInFormation(heroID, formationSlot)
+    HeroHasAnyFeatsSavedInFormation(heroID := 58, formationSlot := 0)
     {
+        ; heroID :=58
         size := this.GameManager.game.gameInstances[this.GameInstance].FormationSaveHandler.formationSavesV2[formationSlot].Feats[heroID].List.size.Read()
-        if(size <= 0 OR size > 10) ; sanity check, should be < 6 but set to 10 in case of future game field familiar increase.
+        if(size == "")
+            return ""
+        if(size <= 0 OR size > 10) ; sanity check
             return false
         return true
     }
@@ -1246,14 +1255,14 @@ class IC_MemoryFunctions_Class
     {
         if (heroID < 1)
             return ""
-        size := g_SF.Memory.GameManager.game.gameInstances[g_SF.Memory.GameInstance].Controller.userData.FeatHandler.heroFeatSlots[heroID].List.size.Read()
+        size := this.GameManager.game.gameInstances[this.GameInstance].Controller.userData.FeatHandler.heroFeatSlots[heroID].List.size.Read()
         ; Sanity check, should be < 4 but set to 10 in case of future feat num increase.
         if (size < 0 || size > 10)
             return ""
         featList := []
         Loop, %size%
         {
-            value := g_SF.Memory.GameManager.game.gameInstances[g_SF.Memory.GameInstance].Controller.userData.FeatHandler.heroFeatSlots[heroID].List[A_Index - 1].ID.Read()
+            value := this.GameManager.game.gameInstances[this.GameInstance].Controller.userData.FeatHandler.heroFeatSlots[heroID].List[A_Index - 1].ID.Read()
             featList.Push(value)
         }
         return featList

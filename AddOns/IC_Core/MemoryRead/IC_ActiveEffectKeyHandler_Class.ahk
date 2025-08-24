@@ -6,6 +6,7 @@ class IC_ActiveEffectKeyHandler_Class
 {
     HeroHandlerIDs := {} 
     HeroEffectNames := {}
+    HeroEffectKeys := {}
     GameManager := ""
     HeroHandler := ""
     GameInstance := 0
@@ -20,6 +21,7 @@ class IC_ActiveEffectKeyHandler_Class
                 {
                     this.HeroHandlerIDs[handler] := heroObj.HeroID
                     this.HeroEffectNames[handler] := handlerObj.EffectKeyString
+                    this.HeroEffectKeys[handlerObj.EffectKeyString] := handler
                 }
             }
         }
@@ -29,24 +31,25 @@ class IC_ActiveEffectKeyHandler_Class
  
     GetVersion()
     {
-        return "v2.6.1, 2025-08-06"
+        return "v2.6.4, 2025-08-11"
     }
 
     ; Used to update the create new game objects or refresh base addresses when they change.
-    Refresh(HandlerName := "")
+    Refresh(HandlerEffectKey := "")
     {
         ; reset HeroHandler in case the game was not open and GameManager objects were not built at startup.
         this.HeroHandler := this.GameManager.game.gameInstances[this.GameInstance].Controller.userData.HeroHandler
-        if(HandlerName != "")
-            this.RefreshHandler(HandlerName)
+        if(HandlerEffectKey != "")
+            this.RefreshHandler(HandlerEffectKey)
         else
-            for k,v in this.HeroEffectNames
+            for k,v in this.HeroEffectKeys
                 this.RefreshHandler(k)
     }
 
     ;  
-    RefreshHandler(HandlerName := "")
+    RefreshHandler(HandlerEffectKey := "")
     {
+        HandlerName := this.HeroEffectKeys[HandlerEffectKey] 
         baseAddress := this.GetBaseAddress(HandlerName)
         if(this[HandlerName] == "")
             this.NewHandlerObject(HandlerName, baseAddress)
@@ -60,7 +63,7 @@ class IC_ActiveEffectKeyHandler_Class
     NewHandlerObject(HandlerName, baseAddress)
     {
         this[handlerName] := New GameObjectStructure([])
-        this[handlerName].BasePtr := new SH_BasePtr(baseAddress)
+        this[handlerName].BasePtr := new SH_BasePtr(baseAddress, 0, 0, "ActiveEffectKeyHandler")
         functionName := "Build" . HandlerName
         this.handlerFnc := ObjBindMethod(this, functionName)
         if (this.handlerFnc == "") ; import does not exist
@@ -72,11 +75,9 @@ class IC_ActiveEffectKeyHandler_Class
     {
         champID := this.HeroHandlerIDs[handlerName]    
         keyHash := this.GetKeyHash(champID, this.HeroEffectNames[handlerName])
-        if(keyHash != "") 
+        if(keyHash != "") ; assuming first item in effectKeysByHashedKeyName/effectKeysByKeyName[key]'s list. Note: DM has two for "force_allow_hero"
             handlerAddressObj := this.HeroHandler.heroes[IC_MemoryFunctions_Class.GetHeroHandlerIndexByChampID(champID)].effects.effectKeysByHashedKeyName[keyHash].List[0].parentEffectKeyHandler.activeEffectHandlers._items
-            ; assuming first item in effectKeysByHashedKeyName/effectKeysByKeyName[key]'s list. Note: DM has two for "force_allow_hero"
-         ; use first item in the _items list as base address so offsets work later
-        address := handlerAddressObj.Read() + handlerAddressObj.CalculateOffset(0) 
+        address := handlerAddressObj.Read() + handlerAddressObj.CalculateOffset(0) ; use first item in the _items list as base address so offsets work later
         return address
     }
 
