@@ -22,7 +22,7 @@ CoordMode, Mouse, Client
 ;Modron Automation Gem Farming Script
 GetScriptHubVersion()
 {
-    return "v4.0.6, 2025-08-16"
+    return "v4.1.1, 2025-09-18" ; Must be line 25 for version checking to work.
 }
 
 ;class and methods for parsing JSON (User details sent back from a server call)
@@ -37,7 +37,7 @@ global g_SCKeyMap:= {}
 KeyHelper.BuildVirtualKeysMap(g_KeyMap, g_SCKeyMap)
 global g_ServerCall
 global g_UserSettings := {}
-global g_TabControlHeight := 630
+global g_TabControlHeight := 700
 global g_TabControlWidth := 430
 global g_InputsSent := 0
 global g_TabList := ""
@@ -86,9 +86,8 @@ if ( g_UserSettings[ "CheckForUpdates" ] == "" )
 if(g_UserSettings[ "WriteSettings" ] == true)
 {
     g_UserSettings.Delete("WriteSettings")
-    SH_SharedFunctions.WriteObjectToJSON( A_LineFile . "\..\Settings.json" , g_UserSettings )
+    SaveUserSettings()
 }
-
 
 global g_SF := new SH_SharedFunctions ; includes MemoryFunctions in g_SF.Memory
 
@@ -113,6 +112,11 @@ GUIFunctions.UseThemeBackgroundColor()
 Gui, ICScriptHub:Show, %  "x" . g_UserSettings[ "WindowXPosition" ] " y" . g_UserSettings[ "WindowYPosition" ] . " w" . g_TabControlWidth+5 . " h" . g_TabControlHeight, % "IC Script Hub" . (g_UserSettings[ "WindowTitle" ] ? (" - " .  g_UserSettings[ "WindowTitle" ]) : "") . "  (Loading...)"
 GUIFunctions.UseThemeTitleBar("ICScriptHub")
 ;WinSet, Style, -0xC00000, A  ; Remove the active window's title bar (WS_CAPTION).
+
+SaveUserSettings()
+{
+    SH_SharedFunctions.WriteObjectToJSON( A_LineFile . "\..\Settings.json" , g_UserSettings )
+}
 
 Reload_Clicked()
 {
@@ -252,3 +256,7 @@ MiniScriptWarning()
             return True
     }
 }
+
+; Refresh GUI after all addons loaded.
+GuiControl, ICScriptHub:Move, ModronTabControl, % "w" . g_TabControlWidth . " h" . g_TabControlHeight
+Gui, ICScriptHub:show, % "w" . g_TabControlWidth+5 . " h" . g_TabControlHeight
